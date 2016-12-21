@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BulletScreen</string>
+    <string name="btn_sendComment">发送</string>
+</resources>
