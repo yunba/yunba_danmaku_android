@@ -20,7 +20,7 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile fileTree(include: ['*.jar'], dir: 'libs')
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
@@ -29,4 +29,11 @@ dependencies {
     compile 'com.github.ctiao:DanmakuFlameMaster:0.6.2'
     compile 'com.github.ctiao:ndkbitmap-armv7a:0.6.2'
     testCompile 'junit:junit:4.12'
+    compile files('libs/yunba-sdk-release1.8.0.jar')
+    compile files('libs/MiPush_SDK_Client_3_0_3.jar')
+    compile files('libs/HwPush_SDK_V2705.jar')
+    compile files('libs/pldroid-player-1.4.1.jar')
+    compile 'com.beardedhen:androidbootstrap:2.3.1'
+    compile 'com.qiniu:happy-dns:0.2.+'
+    compile 'com.qiniu.pili:pili-android-qos:0.8.+'
 }
