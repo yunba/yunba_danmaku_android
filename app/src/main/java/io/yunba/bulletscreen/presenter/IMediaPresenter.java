@@ -10,4 +10,5 @@ public interface IMediaPresenter {
     void onPause();
     void onDestroy();
     void pauseDisplay();
+    void resumeDisplay();
 }

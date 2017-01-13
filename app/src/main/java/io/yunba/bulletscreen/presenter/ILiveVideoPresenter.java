@@ -10,4 +10,5 @@ public interface ILiveVideoPresenter {
     void onDestroy();
     void publishDanmaku(String text);
     void agree();
+    void reconnect();
 }

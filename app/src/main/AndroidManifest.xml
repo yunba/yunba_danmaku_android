@@ -25,7 +25,9 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".MainActivity">
+        <activity
+            android:name=".MainActivity"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -74,9 +76,12 @@
         <!--</intent-filter>-->
         <!--</receiver>-->
 
+        <!--<meta-data-->
+        <!--android:name="YUNBA_APPKEY"-->
+        <!--android:value="585a5d4fb09557a45c143593" />-->
         <meta-data
             android:name="YUNBA_APPKEY"
-            android:value="585a5d4fb09557a45c143593" />
+            android:value="56a0a88c4407a3cd028ac2fe" />
         <meta-data
             android:name="XIAOMI_APPKEY"
             android:value="\ 5901750589775" />

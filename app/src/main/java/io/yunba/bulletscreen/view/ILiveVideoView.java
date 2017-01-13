@@ -8,6 +8,7 @@ import master.flame.danmaku.danmaku.parser.BaseDanmakuParser;
  */
 public interface ILiveVideoView {
     void addDanmaku(String text, boolean islive);
+    void addDanmaku(String text, int color, int mode, int dur, boolean isLive);
     void prepareDanmaku(BaseDanmakuParser parser, DanmakuContext danmakuContext);
     void setOnlineNum(int onlineNum);
     void onEnterLiveVideoError();
@@ -17,4 +18,5 @@ public interface ILiveVideoView {
     void setAgreeNum(int num);
     void onAgreeNumInc();
     void onOnlineChanged(String alias, String action);
+    void onAgreeFail();
 }

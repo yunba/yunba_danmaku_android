@@ -1,33 +1,36 @@
 package io.yunba.bulletscreen;
 
 import android.graphics.Color;
-import android.os.Handler;
+import android.graphics.drawable.AnimationDrawable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.SurfaceHolder;
-import android.view.SurfaceView;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.beardedhen.androidbootstrap.AwesomeTextView;
 import com.beardedhen.androidbootstrap.BootstrapButton;
 import com.beardedhen.androidbootstrap.BootstrapEditText;
+import com.beardedhen.androidbootstrap.BootstrapLabel;
 import com.beardedhen.androidbootstrap.BootstrapText;
 import com.pili.pldroid.player.AVOptions;
 import com.pili.pldroid.player.PLMediaPlayer;
 
 import java.util.HashMap;
 
+import io.yunba.bulletscreen.message.DanmakuReceiver;
 import io.yunba.bulletscreen.presenter.ILiveVideoPresenter;
 import io.yunba.bulletscreen.presenter.IMediaPresenter;
 import io.yunba.bulletscreen.presenter.LiveVideoPresenter;
 import io.yunba.bulletscreen.presenter.MediaPresenter;
+import io.yunba.bulletscreen.ui.CustomResizeSurfaceView;
+import io.yunba.bulletscreen.ui.FlowLikeView;
 import io.yunba.bulletscreen.view.ILiveVideoView;
 import io.yunba.bulletscreen.view.IMediaView;
 import master.flame.danmaku.controller.IDanmakuView;
@@ -37,28 +40,33 @@ import master.flame.danmaku.danmaku.model.android.DanmakuContext;
 import master.flame.danmaku.danmaku.parser.BaseDanmakuParser;
 
 public class MainActivity extends AppCompatActivity implements IMediaView, ILiveVideoView {
-    public static final String TAG = "iub.MainActivity";
+    public static final String TAG = "iyb.MainActivity";
 
     private IMediaPresenter mMediaPresenter;
     private ILiveVideoPresenter mLiveVideoPresenter;
     private IDanmakuView mDanmakuView;
-
     private BootstrapButton mSendCommentBtn;
     private BootstrapButton mAgreeBtn;
     private BootstrapEditText mInputCommentEt;
+    private BootstrapLabel mConnStat;
+    private BootstrapButton mReconnBtn;
     private AwesomeTextView mOnlineTv;
     private AwesomeTextView mAgreeTv;
+    private ImageView mConnIv;
     private TextView mAgreeAnimTv;
     private int mNumberOfOnline = 0;
     private int mNumberOfAgree = 0;
     private View mLoadingView;
-    private SurfaceView mSurfaceView;
-
+    private CustomResizeSurfaceView mSurfaceView;
     private Toast mToast = null;
     private boolean mIsActivityPaused = true;
-
+    private TextView mPauseTv;
+    private boolean isPause = false;
     private BaseDanmakuParser mDanmakuParser;
     private DanmakuContext mDanmakuContext;
+    private FlowLikeView mFlowLikeView;
+    private RelativeLayout mConnStatLayout;
+    private RelativeLayout mConnSucLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,24 +75,25 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
         init();
         mMediaPresenter = new MediaPresenter(this, this);
         mLiveVideoPresenter = new LiveVideoPresenter(this, this);
-        mMediaPresenter.onCreate(getIntent().getIntExtra("liveStreaming", 1),
-                getIntent().getIntExtra("mediaCodec", AVOptions.MEDIA_CODEC_SW_DECODE));
+        DanmakuReceiver.mLiveVideoPresenter = (LiveVideoPresenter) mLiveVideoPresenter;
         mLiveVideoPresenter.onCreate();
+        mMediaPresenter.onCreate(getIntent().getIntExtra("liveStreaming", 1),
+                getIntent().getIntExtra("mediaCodec", AVOptions.MEDIA_CODEC_HW_DECODE));
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        mMediaPresenter.onResume();
         mLiveVideoPresenter.onResume();
+        mMediaPresenter.onResume();
         mIsActivityPaused = false;
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        mMediaPresenter.onPause();
         mLiveVideoPresenter.onPause();
+        mMediaPresenter.onPause();
         mIsActivityPaused = false;
     }
 
@@ -192,7 +201,6 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
 
     private void optionEnable(final boolean isEnable) {
         mSendCommentBtn.setEnabled(isEnable);
-        mAgreeBtn.setEnabled(isEnable);
     }
 
 
@@ -205,30 +213,16 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
     @Override
     public void setAgreeNum(int num) {
         mNumberOfAgree = num;
-        BootstrapText text = new BootstrapText.Builder(getApplicationContext()).addText(getString(R.string.online_number, String.valueOf(mNumberOfOnline)))
+        BootstrapText text = new BootstrapText.Builder(getApplicationContext()).addText(getString(R.string.agree_number, String.valueOf(mNumberOfAgree)))
                 .build();
         mAgreeTv.setBootstrapText(text);
-        mAgreeTv.setText(getString(R.string.agree_number, String.valueOf(mNumberOfAgree)));
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-
-            }
-        });
     }
 
     @Override
     public void onAgreeNumInc() {
-        Animation animation = AnimationUtils.loadAnimation(this,R.anim.agree_animation);
-        mAgreeAnimTv.setVisibility(View.VISIBLE);
-        mAgreeAnimTv.startAnimation(animation);
-        new Handler().postDelayed(new Runnable() {
-            public void run() {
-                mAgreeAnimTv.setVisibility(View.GONE);
-                setAgreeNum(mNumberOfAgree + 1);
-            }
-        }, 1000);
-
+        mAgreeAnimTv.setVisibility(View.GONE);
+        mFlowLikeView.addLikeView();
+        setAgreeNum(mNumberOfAgree + 1);
     }
 
     @Override
@@ -246,7 +240,7 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
 
     private void init() {
         mLoadingView = findViewById(R.id.LoadingView);
-        mSurfaceView = (SurfaceView) findViewById(R.id.SurfaceView);
+        mSurfaceView = (CustomResizeSurfaceView) findViewById(R.id.SurfaceView);
         mDanmakuView = (IDanmakuView) findViewById(R.id.bulletscreen_view);
         mSendCommentBtn = (BootstrapButton) findViewById(R.id.commentSend_btn);
         mAgreeBtn = (BootstrapButton) findViewById(R.id.agree_btn);
@@ -254,6 +248,14 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
         mAgreeTv = (AwesomeTextView) findViewById(R.id.agree_tv);
         mAgreeAnimTv = (TextView) findViewById(R.id.animation_tv);
         mOnlineTv = (AwesomeTextView) findViewById(R.id.online_tv);
+        mFlowLikeView = (FlowLikeView) findViewById(R.id.flowLikeView);
+        mConnStat = (BootstrapLabel) findViewById(R.id.connstat_label);
+        mReconnBtn = (BootstrapButton) findViewById(R.id.reconn_btn);
+        mConnStatLayout = (RelativeLayout) findViewById(R.id.connStat_layout);
+        mConnSucLayout = (RelativeLayout) findViewById(R.id.connSuc_layout);
+        mConnIv = (ImageView) findViewById(R.id.loading_icon);
+        AnimationDrawable loadingAd = (AnimationDrawable) mConnIv.getDrawable();
+        loadingAd.start();
         mSendCommentBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -267,7 +269,21 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
                 mLiveVideoPresenter.agree();
             }
         });
-        optionEnable(false);
+        mPauseTv = (TextView) findViewById(R.id.videoCtlTv);
+        mPauseTv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (isPause) {
+                    mPauseTv.setText("暂停");
+                    mMediaPresenter.resumeDisplay();
+                    isPause = false;
+                } else {
+                    mPauseTv.setText("开始");
+                    mMediaPresenter.pauseDisplay();
+                    isPause = true;
+                }
+            }
+        });
     }
 
     public void addDanmaku(String text, boolean islive) {
@@ -282,8 +298,23 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
         danmaku.setTime(mDanmakuView.getCurrentTime() + 1200);
         danmaku.textSize = 25f * (mDanmakuParser.getDisplayer().getDensity() - 0.6f);
         danmaku.textColor = Color.RED;
+        mDanmakuView.addDanmaku(danmaku);
+    }
+
+    @Override
+    public void addDanmaku(String text, int color, int mode, int dur, boolean isLive) {
+        BaseDanmaku danmaku = mDanmakuContext.mDanmakuFactory.createDanmaku(BaseDanmaku.TYPE_SCROLL_RL);
+        if (null == danmaku || null == mDanmakuView) {
+            return;
+        }
+        danmaku.text = text;
+        danmaku.padding = 5;
+        danmaku.priority = 0;
+        danmaku.isLive = isLive;
+        danmaku.setTime(mDanmakuView.getCurrentTime() + dur);
+        danmaku.textSize = 25f * (mDanmakuParser.getDisplayer().getDensity() - 0.6f);
+        danmaku.textColor = color;
         danmaku.textShadowColor = Color.WHITE;
-        danmaku.borderColor = Color.GREEN;
         mDanmakuView.addDanmaku(danmaku);
     }
 
@@ -317,7 +348,27 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
 
     @Override
     public void onEnterLiveVideoError() {
-
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                BootstrapText text = new BootstrapText.Builder(getApplicationContext()).addText("连接云巴服务器失败，请刷新重试")
+                        .build();
+                mConnStat.setBootstrapText(text);
+                mReconnBtn.setVisibility(View.VISIBLE);
+                mConnIv.setVisibility(View.GONE);
+                mReconnBtn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        BootstrapText text = new BootstrapText.Builder(getApplicationContext()).addText("正在连接云巴服务器...")
+                                .build();
+                        mConnStat.setBootstrapText(text);
+                        mConnIv.setVisibility(View.VISIBLE);
+                        mReconnBtn.setVisibility(View.INVISIBLE);
+                        mLiveVideoPresenter.reconnect();
+                    }
+                });
+            }
+        });
     }
 
     @Override
@@ -325,6 +376,8 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                mConnStatLayout.setVisibility(View.GONE);
+                mConnSucLayout.setVisibility(View.VISIBLE);
                 mInputCommentEt.addTextChangedListener(new TextWatcher() {
                     @Override
                     public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
@@ -352,13 +405,19 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
 
     @Override
     public void onPubDanmakuError() {
+//        Toast.makeText(this, "发送弹幕失败，请重新发送", Toast.LENGTH_SHORT).show();
         optionEnable(true);
     }
 
     @Override
     public void onPubDanmakuSuc() {
         optionEnable(true);
-        mInputCommentEt.setText("");
+//        mInputCommentEt.setText("");
+    }
+
+    @Override
+    public void onAgreeFail() {
+//        Toast.makeText(this, "点赞失败，请重试", Toast.LENGTH_SHORT).show();
     }
 
     private void notifyPresenceChanged() {
@@ -367,6 +426,4 @@ public class MainActivity extends AppCompatActivity implements IMediaView, ILive
         mOnlineTv.setBootstrapText(text);
         mOnlineTv.setText(getString(R.string.online_number, String.valueOf(mNumberOfOnline)));
     }
-
-
 }

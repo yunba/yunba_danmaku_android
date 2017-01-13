@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.Message;
+import android.widget.Toast;
 
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
@@ -37,22 +38,27 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
     private BaseDanmakuParser mDanmakuParser;
     private DanmakuContext mDanmakuContext;
     private YunBaMessageReceiver mMessageReceiver;
+    private static final int HANDLER_TEST = 0x500;
     private static final int HANDLER_SUB_SUC = 0x100;
     private static final int HANDLER_SUB_ERR = 0x101;
     private static final int HANDLER_PUB_SUC = 0x102;
     private static final int HANDLER_PUB_ERR = 0x103;
     private static final int HANDLER_ONLINE_NUM = 0x104;
     private static final int HANDLER_AGREE_NUM = 0x105;
+    private static final int HANDLER_AGREE_FAIL = 0x106;
 
     private Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             switch (msg.what) {
+                case HANDLER_TEST:
+                    Toast.makeText(mContext, "success", Toast.LENGTH_SHORT).show();
+                    break;
                 case HANDLER_SUB_SUC:
                     mLiveVideoView.onEnterLiveVideoSuc();
-                    getNumberOfOnline();
-                    getAgreeCount();
+//                    getNumberOfOnline();
+//                    getAgreeCount();
                     break;
                 case HANDLER_SUB_ERR:
                     mLiveVideoView.onEnterLiveVideoError();
@@ -62,6 +68,9 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
                     break;
                 case HANDLER_PUB_ERR:
                     mLiveVideoView.onPubDanmakuError();
+                    break;
+                case HANDLER_AGREE_FAIL:
+                    mLiveVideoView.onAgreeFail();
                     break;
                 case HANDLER_ONLINE_NUM:
                     mLiveVideoView.setOnlineNum(msg.arg1);
@@ -109,30 +118,59 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
         mDanmakuParser = createParser(null);
         mLiveVideoView.prepareDanmaku(mDanmakuParser, mDanmakuContext);
         Constant.ALIAS = String.valueOf(System.currentTimeMillis());
+        subscribe();
+//        registerMessageReceiver();
+    }
+
+    @Override
+    public void reconnect() {
+        subscribe();
+    }
+
+    private void subscribe() {
+        YunBaManager.subscribe(mContext, Constant.DANMAKU_STAT_TOPIC, null);
         YunBaManager.setAlias(mContext, Constant.ALIAS, new IMqttActionListener() {
             @Override
             public void onSuccess(IMqttToken iMqttToken) {
+                YunBaManager.subscribe(mContext, Constant.DANMAKU_TOPIC, new IMqttActionListener() {
+                    @Override
+                    public void onSuccess(IMqttToken iMqttToken) {
+                        YunBaManager.subscribe(mContext, Constant.DANMAKU_AGREE_TOPIC, new IMqttActionListener() {
+                            @Override
+                            public void onSuccess(IMqttToken iMqttToken) {
+                                YunBaManager.subscribe(mContext, Constant.DANMAKU_STAT_TOPIC, new IMqttActionListener() {
+                                    @Override
+                                    public void onSuccess(IMqttToken iMqttToken) {
+                                        handler.sendEmptyMessage(HANDLER_SUB_SUC);
+//                                        handler.sendEmptyMessage(HANDLER_TEST);
+                                    }
 
+                                    @Override
+                                    public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
+                                        handler.sendEmptyMessage(HANDLER_SUB_ERR);
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
+                                handler.sendEmptyMessage(HANDLER_SUB_ERR);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
+                        handler.sendEmptyMessage(HANDLER_SUB_ERR);
+                    }
+                });
             }
 
             @Override
             public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-
+                handler.sendEmptyMessage(HANDLER_SUB_ERR);
             }
         });
-
-        YunBaManager.subscribe(mContext, Constant.DANMAKU_TOPIC, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken iMqttToken) {
-                handler.sendEmptyMessage(HANDLER_SUB_SUC);
-            }
-
-            @Override
-            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-            }
-        });
-
-        registerMessageReceiver();
     }
 
     @Override
@@ -154,12 +192,22 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
             public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
             }
         });
-        unregisterMessageReceiver();
+//        unregisterMessageReceiver();
     }
 
     @Override
     public void publishDanmaku(String text) {
-        YunBaManager.publish(mContext, Constant.DANMAKU_TOPIC, text, new IMqttActionListener() {
+        JSONObject toSend = new JSONObject();
+        try {
+            toSend.put("mode", 2);
+            toSend.put("text", text);
+            toSend.put("color", 0xFFFF0000);
+            toSend.put("dur", 4000);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        YunBaManager.publish(mContext, Constant.DANMAKU_TOPIC, toSend.toString(), new IMqttActionListener() {
             @Override
             public void onSuccess(IMqttToken iMqttToken) {
                 handler.sendEmptyMessage(HANDLER_PUB_SUC);
@@ -174,67 +222,7 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
 
     @Override
     public void agree() {
-        YunBaManager.subscribe(mContext, Constant.DANMAKU_AGREE_TOPIC, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken iMqttToken) {
-            }
-
-            @Override
-            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-            }
-        });
-    }
-
-    private void getNumberOfOnline() {
-        YunBaManager.getAliasList(mContext, Constant.DANMAKU_TOPIC, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken iMqttToken) {
-                JSONObject result = iMqttToken.getResult();
-                try {
-                    JSONArray topics = result.getJSONArray("alias");
-                    Message msg = Message.obtain();
-                    msg.what = HANDLER_ONLINE_NUM;
-                    msg.arg1 = topics.length();
-                    handler.sendMessage(msg);
-                    subscribePresence();
-                } catch (JSONException e) {
-
-                }
-            }
-
-            @Override
-            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-
-            }
-        });
-    }
-
-    private void getAgreeCount() {
-        YunBaManager.getAliasList(mContext, Constant.DANMAKU_AGREE_TOPIC, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken iMqttToken) {
-                JSONObject result = iMqttToken.getResult();
-                try {
-                    JSONArray topics = result.getJSONArray("alias");
-                    Message msg = Message.obtain();
-                    msg.what = HANDLER_AGREE_NUM;
-                    msg.arg1 = topics.length();
-                    handler.sendMessage(msg);
-                    subscribePresence();
-                } catch (JSONException e) {
-
-                }
-            }
-
-            @Override
-            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-
-            }
-        });
-    }
-
-    private void subscribePresence() {
-        YunBaManager.subscribePresence(mContext, Constant.DANMAKU_TOPIC, new IMqttActionListener() {
+        YunBaManager.publish(mContext, Constant.DANMAKU_AGREE_TOPIC, "like", new IMqttActionListener() {
             @Override
             public void onSuccess(IMqttToken iMqttToken) {
 
@@ -242,19 +230,7 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
 
             @Override
             public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-
-            }
-        });
-
-        YunBaManager.subscribePresence(mContext, Constant.DANMAKU_AGREE_TOPIC, new IMqttActionListener() {
-            @Override
-            public void onSuccess(IMqttToken iMqttToken) {
-
-            }
-
-            @Override
-            public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
-
+                handler.sendEmptyMessage(HANDLER_AGREE_FAIL);
             }
         });
     }
@@ -268,22 +244,91 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
         };
     }
 
+    public void processCustomMessage(Context context, Intent yunbaIntent) {
+        if (YunBaManager.MESSAGE_RECEIVED_ACTION.equals(yunbaIntent.getAction())) {
+            String topic = yunbaIntent.getStringExtra(YunBaManager.MQTT_TOPIC);
+            String msg = yunbaIntent.getStringExtra(YunBaManager.MQTT_MSG);
+//            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show();
+            if (Constant.DANMAKU_TOPIC.equals(topic)) {
+                try {
+                    JSONObject json = new JSONObject(msg);
+                    String entity = json.getString("text");
+                    int mode = json.getInt("mode");
+                    int color = json.getInt("color");
+                    int dur = json.getInt("dur");
+                    mLiveVideoView.addDanmaku(entity, color, mode, dur, false);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            } else if (Constant.DANMAKU_AGREE_TOPIC.equals(topic)) {
+                mLiveVideoView.onAgreeNumInc();
+            } else if (Constant.ALIAS.equals(topic)) {
+                try {
+                    JSONObject json = new JSONObject(msg);
+                    int likeCount = json.getInt("like");
+                    int presence = json.getInt("presence");
+                    Message msgPresence = Message.obtain();
+                    msgPresence.what = HANDLER_ONLINE_NUM;
+                    msgPresence.arg1 = presence;
+                    handler.sendMessage(msgPresence);
+
+                    Message msgLike = Message.obtain();
+                    msgLike.what = HANDLER_AGREE_NUM;
+                    msgLike.arg1 = likeCount;
+                    handler.sendMessage(msgLike);
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
     public class YunBaMessageReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (intent.getAction().equals(Constant.MESSAGE_RECEIVED_ACTION)) {
-                String showTxt = intent.getStringExtra(Constant.PARAMS_MESSAGE_BODY);
-                mLiveVideoView.addDanmaku(showTxt, false);
+                String topic = intent.getStringExtra(Constant.PARAMS_MESSAGE_TOPIC);
+                if (Constant.DANMAKU_TOPIC.equals(topic)) {
+                    String showTxt = intent.getStringExtra(Constant.PARAMS_MESSAGE_BODY);
+                    try {
+                        JSONObject json = new JSONObject(showTxt);
+                        String entity = json.getString("text");
+                        int mode = json.getInt("mode");
+                        int color = json.getInt("color");
+                        int dur = json.getInt("dur");
+//                        mLiveVideoView.addDanmaku(json.getString("text"), false);
+                        mLiveVideoView.addDanmaku(entity, color, mode, dur, false);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                } else if (Constant.DANMAKU_AGREE_TOPIC.equals(topic)) {
+                    mLiveVideoView.onAgreeNumInc();
+                } else if (Constant.ALIAS.equals(topic)) {
+                    String showTxt = intent.getStringExtra(Constant.PARAMS_MESSAGE_BODY);
+                    try {
+                        JSONObject json = new JSONObject(showTxt);
+                        int likeCount = json.getInt("like");
+                        int presence = json.getInt("presence");
+                        Message msg = Message.obtain();
+                        msg.what = HANDLER_ONLINE_NUM;
+                        msg.arg1 = presence;
+                        handler.sendMessage(msg);
+
+                        Message msgLike = Message.obtain();
+                        msgLike.what = HANDLER_AGREE_NUM;
+                        msgLike.arg1 = likeCount;
+                        handler.sendMessage(msg);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+
             } else if (intent.getAction().equals(Constant.PRESENCE_RECIVED_ACTION)) {
                 String topic = intent.getStringExtra(Constant.PARAMS_PRESENCE_TOPIC);
                 String action = intent.getStringExtra(Constant.PARAMS_PRESENCE_ACTION);
                 String alias = intent.getStringExtra(Constant.PARAMS_PRESENCE_ALIAS);
                 if (topic.equals(Constant.DANMAKU_TOPIC)) {
                     mLiveVideoView.onOnlineChanged(alias, action);
-                } else if (topic.equals(Constant.DANMAKU_AGREE_TOPIC)) {
-                    if ("join".equals(action)) {
-                        mLiveVideoView.onAgreeNumInc();
-                    }
                 }
             }
         }

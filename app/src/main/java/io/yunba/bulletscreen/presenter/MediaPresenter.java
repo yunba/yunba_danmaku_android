@@ -89,7 +89,16 @@ public class MediaPresenter implements IMediaPresenter {
 
     @Override
     public void pauseDisplay() {
+        if (mMediaPlayer != null) {
+            mMediaPlayer.pause();
+        }
+    }
 
+    @Override
+    public void resumeDisplay() {
+        if (mMediaPlayer != null) {
+            mMediaPlayer.start();
+        }
     }
 
     @Override
@@ -104,10 +113,8 @@ public class MediaPresenter implements IMediaPresenter {
             mMediaPlayer.setDisplay(mMediaView.getSurfaceHolder());
             return;
         }
-
         try {
             mMediaPlayer = new PLMediaPlayer(mContext, mAVOptions);
-
             mMediaPlayer.setOnPreparedListener(mOnPreparedListener);
 //            mMediaPlayer.setOnVideoSizeChangedListener(mOnVideoSizeChangedListener);
             mMediaPlayer.setOnCompletionListener(mOnCompletionListener);
