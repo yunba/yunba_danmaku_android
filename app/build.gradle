@@ -5,14 +5,6 @@ ext.appVersionCode = 1
 ext.appSuffixName = "-release.apk"
 
 android {
-    signingConfigs {
-        releaseConfig {
-            keyAlias 'android.keystore'
-            storeFile file("android.keystore")
-            keyPassword System.console().readLine("\nKey password: ")
-            storePassword System.console().readLine("\nstore password: ")
-        }
-    }
     compileSdkVersion 24
     buildToolsVersion "25.0.1"
     defaultConfig {
@@ -26,7 +18,6 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.releaseConfig
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             zipAlignEnabled true
             // 进行资源优化，移除无用的resource文件
@@ -53,7 +44,6 @@ dependencies {
     compile 'com.github.ctiao:DanmakuFlameMaster:0.6.2'
     compile 'com.github.ctiao:ndkbitmap-armv7a:0.6.2'
     testCompile 'junit:junit:4.12'
-    compile files('libs/MiPush_SDK_Client_3_0_3.jar')
     compile files('libs/HwPush_SDK_V2705.jar')
     compile files('libs/pldroid-player-1.4.1.jar')
     compile 'com.beardedhen:androidbootstrap:2.3.1'

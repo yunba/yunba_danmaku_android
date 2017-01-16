@@ -57,8 +57,6 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
                     break;
                 case HANDLER_SUB_SUC:
                     mLiveVideoView.onEnterLiveVideoSuc();
-//                    getNumberOfOnline();
-//                    getAgreeCount();
                     break;
                 case HANDLER_SUB_ERR:
                     mLiveVideoView.onEnterLiveVideoError();
@@ -119,7 +117,6 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
         mLiveVideoView.prepareDanmaku(mDanmakuParser, mDanmakuContext);
         Constant.ALIAS = String.valueOf(System.currentTimeMillis());
         subscribe();
-//        registerMessageReceiver();
     }
 
     @Override
@@ -142,7 +139,6 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
                                     @Override
                                     public void onSuccess(IMqttToken iMqttToken) {
                                         handler.sendEmptyMessage(HANDLER_SUB_SUC);
-//                                        handler.sendEmptyMessage(HANDLER_TEST);
                                     }
 
                                     @Override
@@ -192,7 +188,6 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
             public void onFailure(IMqttToken iMqttToken, Throwable throwable) {
             }
         });
-//        unregisterMessageReceiver();
     }
 
     @Override
@@ -296,7 +291,6 @@ public class LiveVideoPresenter implements ILiveVideoPresenter {
                         int mode = json.getInt("mode");
                         int color = json.getInt("color");
                         int dur = json.getInt("dur");
-//                        mLiveVideoView.addDanmaku(json.getString("text"), false);
                         mLiveVideoView.addDanmaku(entity, color, mode, dur, false);
                     } catch (JSONException e) {
                         e.printStackTrace();
