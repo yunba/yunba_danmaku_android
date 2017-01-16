@@ -1,6 +1,18 @@
 apply plugin: 'com.android.application'
+ext.appReleaseDir = "./"
+ext.appVersionName = "1.0.0"
+ext.appVersionCode = 1
+ext.appSuffixName = "-release.apk"
 
 android {
+    signingConfigs {
+        releaseConfig {
+            keyAlias 'android.keystore'
+            storeFile file("android.keystore")
+            keyPassword System.console().readLine("\nKey password: ")
+            storePassword System.console().readLine("\nstore password: ")
+        }
+    }
     compileSdkVersion 24
     buildToolsVersion "25.0.1"
     defaultConfig {
@@ -14,7 +26,19 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.releaseConfig
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            zipAlignEnabled true
+            // 进行资源优化，移除无用的resource文件
+            shrinkResources true
+            android.applicationVariants.all { variant ->
+                variant.outputs.each { output ->
+                    //开始输出,自定义输出路径
+                    output.outputFile =
+                            new File("yunba-danmuku-demo" +
+                                    appSuffixName)
+                }
+            }
         }
     }
 }
